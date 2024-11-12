@@ -5,7 +5,7 @@ import csv
 # Set the year, base URL, and specify the number of weeks to check
 year = 2024
 base_url = 'https://www.espn.com/nfl/scoreboard/_/week/{week}/year/{year}/seasontype/2'
-weeks_to_check = 2  # Set this to the number of weeks you want to scrape
+weeks_to_check = 10  # Set this to the number of weeks you want to scrape
 
 # Dictionary to store data with each team as a key
 team_data = {}
@@ -21,6 +21,19 @@ for week in range(1, weeks_to_check + 1):
     
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Find all teams on a bye for the week
+    bye_week_teams = []
+    bye_section = soup.find("section", class_="Card ScoreboardByeWeek")
+    if bye_section:
+        bye_team_elements = bye_section.find_all("a", class_="AnchorLink")
+        bye_week_teams = [team.text.strip() for team in bye_team_elements]
+
+    # Assign 0 for all teams on a bye durnig the week
+    for team in bye_week_teams:
+        if team not in team_data:
+            team_data[team] = {"weekly_diffs": [], "total_diff": 0}
+        team_data[team]["weekly_diffs"].append(0)
     
     # Find all score cells for the current week
     scoreboard_cells = soup.find_all("div", class_="ScoreboardScoreCell")
@@ -52,27 +65,33 @@ for week in range(1, weeks_to_check + 1):
             # Calculate the difference
             difference = team1_total_q3_q4_ot - team2_total_q3_q4_ot
             
-            # Update team data with this week's difference
+            # Initialize team data and update weekly differences
             if team1_name not in team_data:
-                team_data[team1_name] = []
+                team_data[team1_name] = {"weekly_diffs": [], "total_diff": 0}
             if team2_name not in team_data:
-                team_data[team2_name] = []
+                team_data[team2_name] = {"weekly_diffs": [], "total_diff": 0}
 
-            team_data[team1_name].append(difference)
-            team_data[team2_name].append(-difference)
+            # Update weekly differences and total difference
+            team_data[team1_name]["weekly_diffs"].append(difference)
+            team_data[team1_name]["total_diff"] += difference
 
-# Step 4: Write to CSV with "Team" as the first column and each week as subsequent columns
-fieldnames = ["Team"] + [f"Week {i+1}" for i in range(weeks_to_check)]
+            team_data[team2_name]["weekly_diffs"].append(-difference)
+            team_data[team2_name]["total_diff"] += -difference
 
-with open('weekly_team_differences.csv', mode='w', newline='') as file:
+# Step 4: Write to CSV with "Team", "Week 1", ..., "Week N", and "Total Difference" columns
+fieldnames = ["Team"] + [f"Week {i+1}" for i in range(weeks_to_check)] + ["Total Difference"]
+
+with open('weekly_team_differences_with_totals.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(fieldnames)
     
     # Write each team's data
-    for team, differences in team_data.items():
+    for team, data in team_data.items():
         # Fill in missing weeks with 0 if a team has fewer entries than the number of weeks checked
-        while len(differences) < weeks_to_check:
-            differences.append(0)
-        writer.writerow([team] + differences)
+        while len(data["weekly_diffs"]) < weeks_to_check:
+            data["weekly_diffs"].append(0)
+        
+        # Write the row with team name, weekly differences, and total difference
+        writer.writerow([team] + data["weekly_diffs"] + [data["total_diff"]])
 
-print("Data has been written to weekly_team_differences.csv")
+print("Data has been written to weekly_team_differences_with_totals.csv")
