@@ -1,0 +1,1 @@
+On 11/10 the Houston Texans lost to the Buffalo Bills on a game winning field goal. The Texans were up 23-7 going into the second half of the game. This year the Texans have been very bad in the second half of games and I wanted to see just how bad. I created this script to scrape data from ESPN to check each teams week to week +/- scoring in the second half of games.
